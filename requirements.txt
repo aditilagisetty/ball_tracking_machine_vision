@@ -1,0 +1,7 @@
+numpy
+opencv-python
+matplotlib
+scipy
+pytest
+# backup if our own Kalman filter is not working in time
+filterpy
