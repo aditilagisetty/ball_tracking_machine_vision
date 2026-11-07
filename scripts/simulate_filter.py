@@ -137,8 +137,8 @@ def main():
     # sigma_a is BELIEF (how wrong the filter thinks its gravity-only model might be).
     print('drag    sigma_a   NEES (ideal 6)')
     for drag in [0.0, BALL_DRAG]:
-        for sigma_a in [0.5, 0.61, 0.7, 0.75]:
-            print(f'{drag:<8}{sigma_a:<10}{average_nees(sigma_a, drag):.2f}')
+        for sigma_a in [1.0, 1.5, 2.0]:
+            print(f'{drag:<8.3f}{sigma_a:<10}{average_nees(sigma_a, drag):.2f}')
 
 
 if __name__ == '__main__':

@@ -22,7 +22,19 @@ def test_tracks_simulated_throw():
 
 def test_error_within_reported_uncertainty():
     """Errors should mostly fall inside the filter's covariance."""
-    pass
+    inside = []
+    for seed in range(30):
+        throw, meas = simulate_measurements(seed, BALL_DRAG)
+        for k, (t, x, P) in enumerate(run_filter(meas, sigma_a=1.5)):
+            if k < 5: # skip startup frames
+                continue
+            i = np.argmin(np.abs(throw['t'] - t))
+            error = np.abs(throw['position'][i] - x[:3])
+            sigma = np.sqrt(np.diag(P)[:3]) # filters claimed sigma for x, y, z
+            inside.append(error < 2 * sigma)
+
+    fraction = np.mean(inside) # ideal is about 0.95
+    assert 0.90 < fraction < 0.99
 
 
 def test_recovers_from_bad_start():
