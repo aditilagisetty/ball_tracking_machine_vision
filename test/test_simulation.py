@@ -6,8 +6,14 @@ from ball_tracking_machine_vision.simulation import (
     GRAVITY,
     TENNIS_BALL_DRAG,
     add_measurement_noise,
+    add_stereo_noise,
     drop_frames,
     simulate_throw,
+)
+from ball_tracking_machine_vision.stereo_noise import (
+    make_camera,
+    measurement_covariance,
+    stereo_noise_std,
 )
 
 
@@ -50,3 +56,32 @@ def test_drop_frames_keeps_first():
     dropped = drop_frames(noisy, drop_rate=0.5, rng=rng)
     assert dropped['t'][0] == 0.0
     assert len(dropped['t']) < len(noisy['t'])
+
+
+def test_stereo_noise_is_worst_in_depth():
+    """A camera looking along world +y should put its big depth noise on world y."""
+    camera = make_camera(position=[0, -2, 1], target=[0, 0, 1])
+    R = measurement_covariance(np.array([0.0, 0.0, 1.0]), camera)
+    sigma = np.sqrt(np.diag(R))
+    assert sigma[1] > 10 * sigma[0]      # depth (world y) much noisier than sideways (world x)
+    assert np.isclose(sigma[0], sigma[2])  # the two sideways axes match
+
+
+def test_stereo_noise_grows_with_distance():
+    """Depth noise should grow with distance squared, sideways noise linearly."""
+    camera = make_camera()
+    near = stereo_noise_std(1.0, camera)
+    far = stereo_noise_std(2.0, camera)
+    assert np.isclose(far[0] / near[0], 2.0)
+    assert np.isclose(far[2] / near[2], 4.0)
+
+
+def test_add_stereo_noise_matches_covariance():
+    """The noise actually added should have the spread the R matrices claim."""
+    rng = np.random.default_rng(0)
+    camera = make_camera(position=[0, -2, 1], target=[0, 0, 1])
+    throw = simulate_throw([0, 0, 1.0], [0, 0, 0], dt=1 / 1000)   # ball barely moves
+    noisy = add_stereo_noise(throw, camera, rng)
+    spread = np.std(noisy['position'] - throw['position'], axis=0)
+    expected = np.sqrt(np.diag(noisy['covariance'][0]))
+    assert np.allclose(spread, expected, rtol=0.15)

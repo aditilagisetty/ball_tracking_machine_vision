@@ -11,13 +11,23 @@ from ball_tracking_machine_vision.simulation import GRAVITY
 # A measurement further than this from the prediction is probably a bad detection
 GATE_THRESHOLD = 11.34
 
+# Don't gate the first few updates. With only 2-3 points the velocity estimate
+# can be badly off, and gating on a bad prediction rejects good measurements.
+GATE_WARMUP_UPDATES = 10
+
+# If this many measurements in a row get rejected, assume the filter has gone
+# wrong (not the camera) and restart it from the latest measurement.
+# Otherwise one bad velocity estimate can lock the filter out for the rest of the throw.
+MAX_CONSECUTIVE_REJECTIONS = 5
+
 
 class BallKalmanFilter:
 
     def __init__(self, sigma_a, measurement_noise):
         """
         sigma_a: strength of unmodeled acceleration (m/s²), start around 2.
-        measurement_noise: 3×3 R matrix (m²), e.g. np.diag(np.array([0.01, 0.01, 0.03])**2)
+        measurement_noise: 3×3 R matrix (m²), e.g. np.diag(np.array([0.01, 0.01, 0.03])**2).
+            Used whenever a measurement doesn't come with its own R.
         """
         self.sigma_a = sigma_a
         self.R = np.asarray(measurement_noise, dtype=float)
@@ -25,14 +35,24 @@ class BallKalmanFilter:
         self.x = None
         self.P = None
         self.last_time = None
+        self.n_updates = 0          # accepted updates since initialize (for the warmup)
+        self.n_rejected = 0         # rejections in a row (for the lockout reset)
 
-    def initialize(self, first_measurement, timestamp):
-        """Start the filter from the first 3D measurement."""
+    def initialize(self, first_measurement, timestamp, R=None):
+        """Start the filter from the first 3D measurement.
+
+        R: optional 3×3 noise for this measurement. Stereo noise depends on
+        distance, so each measurement can bring its own R; if None, the
+        fixed self.R from __init__ is used.
+        """
+        R = self.R if R is None else R
         self.x = np.concatenate([first_measurement, np.zeros(3)])
         self.P = np.zeros((6, 6))
-        self.P[:3, :3] = self.R                # position: as good as one measurement
+        self.P[:3, :3] = R                     # position: as good as one measurement
         self.P[3:, 3:] = 100.0 * np.eye(3)     # velocity: unknown (σ = 10 m/s)
         self.last_time = timestamp
+        self.n_updates = 0
+        self.n_rejected = 0
 
     def predict(self, dt):
         """Propagate the state and covariance forward by dt under gravity."""
@@ -40,13 +60,23 @@ class BallKalmanFilter:
         self.x = F @ self.x + gravity_input(dt)
         self.P = F @ self.P @ F.T + process_noise(dt, self.sigma_a)
 
-    def update(self, measurement):
-        """Correct the state with a new 3D position measurement."""
-        y = measurement - self.H @ self.x            # residual --> measured minus predicted
-        S = self.H @ self.P @ self.H.T + self.R      # expected size of that residual
+    def update(self, measurement, R=None):
+        """Correct the state with a new 3D position measurement.
 
-        # reject measurements implausibly far from the prediction
-        if y @ np.linalg.solve(S, y) > GATE_THRESHOLD:
+        R: optional 3×3 noise for this measurement (see initialize).
+        """
+        R = self.R if R is None else R
+        y = measurement - self.H @ self.x            # residual --> measured minus predicted
+        S = self.H @ self.P @ self.H.T + R           # expected size of that residual
+
+        # reject measurements implausibly far from the prediction,
+        # but only once the filter has had enough updates to trust its prediction
+        warmed_up = self.n_updates >= GATE_WARMUP_UPDATES
+        if warmed_up and y @ np.linalg.solve(S, y) > GATE_THRESHOLD:
+            self.n_rejected += 1
+            if self.n_rejected >= MAX_CONSECUTIVE_REJECTIONS:
+                # lockout: restart from this measurement (velocity unknown again)
+                self.initialize(measurement, self.last_time, R)
             return False
 
         K = self.P @ self.H.T @ np.linalg.inv(S)     # Kalman gain
@@ -54,18 +84,20 @@ class BallKalmanFilter:
 
         # Joseph form --> same as (I - KH) P but stays symmetric and positive
         I_KH = np.eye(6) - K @ self.H
-        self.P = I_KH @ self.P @ I_KH.T + K @ self.R @ K.T
+        self.P = I_KH @ self.P @ I_KH.T + K @ R @ K.T
+        self.n_updates += 1
+        self.n_rejected = 0
         return True
 
     def get_state(self):
         """Return the current state estimate and covariance."""
         return self.x.copy(), self.P.copy()
 
-    def step(self, measurement, timestamp):
+    def step(self, measurement, timestamp, R=None):
         """Predict to this timestamp, then update. Handles uneven frame gaps."""
         self.predict(timestamp - self.last_time)
         self.last_time = timestamp
-        return self.update(measurement)
+        return self.update(measurement, R)
 
 
 def transition_matrix(dt):

@@ -7,6 +7,12 @@ can go through the same code.
 
 import numpy as np
 
+from ball_tracking_machine_vision.stereo_noise import (
+    depth_of,
+    measurement_covariance,
+    stereo_noise_std,
+)
+
 GRAVITY = 9.81
 
 # Quadratic drag coefficient for a tennis ball, k = 0.5 * rho * Cd * A / m
@@ -120,15 +126,55 @@ def add_measurement_noise(trajectory, noise_std, rng):
     }
 
 
+def add_stereo_noise(trajectory, camera, rng):
+    """Add noise the way a stereo camera would: small sideways, large in depth.
+
+    Unlike add_measurement_noise, the noise here depends on where the ball is:
+    it's worse the further the ball is from the camera, and worst along the
+    camera's viewing direction (see stereo_noise.py).
+
+    Args:
+        trajectory: output of simulate_throw.
+        camera: output of stereo_noise.make_camera.
+        rng: numpy Generator, e.g. np.random.default_rng(0).
+
+    Returns:
+        dict with
+            't': (N,) timestamps
+            'position': (N, 3) noisy positions
+            'covariance': (N, 3, 3) the R matrix to give the filter for each
+                frame. It's computed from the *measured* position, because
+                the real pipeline won't know the true one either.
+    """
+    noisy_positions = []
+    covariances = []
+    for true_position in trajectory['position']:
+        # Noise is generated in the camera frame, where it's easy to describe:
+        # independent along right, down and forward, with forward much larger.
+        sigma = stereo_noise_std(depth_of(true_position, camera), camera)
+        noise_camera = rng.normal(0.0, 1.0, size=3) * sigma
+
+        # Rotate the noise into the world frame and add it to the true position.
+        noisy_position = true_position + camera['rotation'] @ noise_camera
+        noisy_positions.append(noisy_position)
+
+        covariances.append(measurement_covariance(noisy_position, camera))
+
+    return {
+        't': trajectory['t'].copy(),
+        'position': np.array(noisy_positions),
+        'covariance': np.array(covariances),
+    }
+
+
 def drop_frames(measurements, drop_rate, rng):
     """Randomly remove frames to mimic missed detections.
 
     The first frame is always kept so the filter has somewhere to start.
     The filter should handle the gaps by predicting without updating.
+    Works on every per-frame array in the dict ('t', 'position', and
+    'covariance' if present), so they all stay lined up.
     """
     keep = rng.random(len(measurements['t'])) >= drop_rate
     keep[0] = True
-    return {
-        't': measurements['t'][keep],
-        'position': measurements['position'][keep],
-    }
+    return {key: values[keep] for key, values in measurements.items()}
