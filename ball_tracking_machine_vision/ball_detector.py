@@ -1,4 +1,4 @@
-"""Finding the tennis ball in a single image.
+"""Finding the basketball in a single image.
 
 Two approaches to compare especially on motion blurred frames
 color thresholding and the Hough circle transform.
@@ -74,12 +74,15 @@ def detect_ball_hough(image, hough_params):
     return float(u), float(v), float(radius)
 
     
-# Red HSV values
-RED_LOW_1 = (0, 100, 50)
-RED_HIGH_1 = (10, 255, 255)
+# Orange basketball HSV starting values; tune for lighting.
+# Keep the existing names for compatibility with tune_detector.py.
+# Both ranges cover orange so the second mask does not also select red.
+# Basketball HSV detection
+RED_LOW_1 = (0, 150, 40)
+RED_HIGH_1 = (12, 255, 200)
 
-RED_LOW_2 = (170, 100, 50)
-RED_HIGH_2 = (179, 255, 255)
+RED_LOW_2 = (170, 150, 40)
+RED_HIGH_2 = (179, 255, 200)
 
 HOUGH_PARAMS = {
     "dp": 1.2,
