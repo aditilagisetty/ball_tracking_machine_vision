@@ -15,23 +15,54 @@ from ball_tracking_machine_vision.stereo_noise import (
 
 GRAVITY = 9.81
 
-# Quadratic drag coefficient for a tennis ball, k = 0.5 * rho * Cd * A / m
-# (air density 1.2 kg/m^3, Cd ~0.55, radius 3.35 cm, mass 58 g). The drag
-# acceleration is -k * |v| * v, so about 2 m/s^2 at 10 m/s.
-TENNIS_BALL_DRAG = 0.02
+# The ball
+# Diameter in meters. PLACEHOLDER: 8.5 inches 
+BALL_DIAMETER = 0.216
+
+# Mass in kilograms. PLACEHOLDER: about 300 g 
+BALL_MASS = 0.30
+
+# The camera tracks the ball's CENTER, and the center is one radius above the
+# floor when the ball touches down. Landing is detected at that height, not z = 0.
+BALL_RADIUS = BALL_DIAMETER / 2
+
+AIR_DENSITY = 1.2            # kg/m^3, room temperature at sea level
+
+# Drag coefficient of a sphere. PLACEHOLDER: about 0.5 
+SPHERE_DRAG_CD = 0.5
+
+
+def drag_coefficient(diameter, mass, cd=SPHERE_DRAG_CD, air_density=AIR_DENSITY):
+    """Quadratic drag coefficient k for a ball, in 1/m.
+
+    The drag force is 0.5 * rho * Cd * area * v^2; dividing by mass gives the
+    drag acceleration -k * |v| * v, with k = 0.5 * rho * Cd * area / mass.
+    Big, light balls have large k (slowed down a lot); small, heavy balls small k.
+    """
+    area = np.pi * (diameter / 2)**2      # cross-section the air hits
+    return 0.5 * air_density * cd * area / mass
+
+
+# Drag for our ball, from the placeholders above: about 0.037 1/m, so roughly
+# 0.9 m/s^2 of slowing at 5 m/s and 1.8 m/s^2 at 7 m/s. 
+BALL_DRAG = drag_coefficient(BALL_DIAMETER, BALL_MASS)
 
 
 def simulate_throw(initial_position, initial_velocity, dt, floor_height=0.0,
-                   drag=0.0, substeps=10, max_time=10.0):
+                   drag=0.0, ball_radius=BALL_RADIUS, substeps=10, max_time=10.0):
     """Generate a true ballistic trajectory until it hits the floor.
 
     Args:
-        initial_position: starting (x, y, z), must be above the floor.
+        initial_position: starting (x, y, z) of the ball's center,
+            more than one radius above the floor.
         initial_velocity: starting (vx, vy, vz).
         dt: time between camera frames (e.g. 1/60).
         floor_height: z of the floor.
         drag: quadratic drag coefficient (0 for gravity only,
-            TENNIS_BALL_DRAG for a realistic ball).
+            BALL_DRAG for a realistic ball).
+        ball_radius: the throw ends when the ball's bottom touches the floor,
+            i.e. when its center is ball_radius above it. Pass 0 to treat the
+            ball as a point.
         substeps: integration steps per frame. Only matters when drag > 0;
             with gravity only each step is exact.
         max_time: safety limit so a bad input can't loop forever.
@@ -41,13 +72,16 @@ def simulate_throw(initial_position, initial_velocity, dt, floor_height=0.0,
             't': (N,) frame timestamps
             'position': (N, 3) true positions at each frame
             'velocity': (N, 3) true velocities at each frame
-            'landing_point': (3,) where the ball crosses the floor
-            'landing_time': time it crosses the floor
+            'landing_point': (3,) where the ball touches the floor (the spot
+                directly below its center at contact, so z = floor_height)
+            'landing_time': time it touches the floor
     """
     position = np.asarray(initial_position, dtype=float)
     velocity = np.asarray(initial_velocity, dtype=float)
-    if position[2] <= floor_height:
-        raise ValueError('initial position must be above the floor')
+    # Height of the ball's center at the moment its bottom touches the floor.
+    contact_height = floor_height + ball_radius
+    if position[2] <= contact_height:
+        raise ValueError('ball must start above the floor')
 
     h = dt / substeps
     gravity = np.array([0.0, 0.0, -GRAVITY])
@@ -63,9 +97,9 @@ def simulate_throw(initial_position, initial_velocity, dt, floor_height=0.0,
             next_position = position + velocity * h + 0.5 * acceleration * h**2
             next_velocity = velocity + acceleration * h
 
-            if next_position[2] <= floor_height:
+            if next_position[2] <= contact_height:
                 # Interpolate within this small step to find the exact crossing.
-                fraction = (position[2] - floor_height) / (position[2] - next_position[2])
+                fraction = (position[2] - contact_height) / (position[2] - next_position[2])
                 landing_point = position + fraction * (next_position - position)
                 landing_point[2] = floor_height
                 return {

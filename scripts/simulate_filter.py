@@ -9,7 +9,7 @@ import numpy as np
 
 from ball_tracking_machine_vision.kalman_filter import BallKalmanFilter
 from ball_tracking_machine_vision.simulation import (
-    TENNIS_BALL_DRAG,
+    BALL_DRAG,
     add_stereo_noise,
     drop_frames,
     random_throw_conditions,
@@ -107,9 +107,9 @@ def average_nees(sigma_a, drag, n_throws=50):
     return np.mean(values)
 
 
-def single_throw_demo(sigma_a=1.0):
+def single_throw_demo(sigma_a=1.5):
     """Filter one throw and compare the final estimate to the truth."""
-    throw, meas = simulate_measurements(seed=0, drag=TENNIS_BALL_DRAG)
+    throw, meas = simulate_measurements(seed=0, drag=BALL_DRAG)
 
     # How noisy the simulated camera is where this throw starts and ends.
     # stereo_noise_std returns (sideways, sideways, depth) standard deviations.
@@ -136,7 +136,7 @@ def main():
     # drag is REALITY (how the simulated ball flies); the filter never knows about it.
     # sigma_a is BELIEF (how wrong the filter thinks its gravity-only model might be).
     print('drag    sigma_a   NEES (ideal 6)')
-    for drag in [0.0, TENNIS_BALL_DRAG]:
+    for drag in [0.0, BALL_DRAG]:
         for sigma_a in [0.5, 0.61, 0.7, 0.75]:
             print(f'{drag:<8}{sigma_a:<10}{average_nees(sigma_a, drag):.2f}')
 

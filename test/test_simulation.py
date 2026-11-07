@@ -4,7 +4,8 @@ import numpy as np
 
 from ball_tracking_machine_vision.simulation import (
     GRAVITY,
-    TENNIS_BALL_DRAG,
+    BALL_DRAG,
+    BALL_RADIUS,
     add_measurement_noise,
     add_stereo_noise,
     drop_frames,
@@ -23,7 +24,9 @@ def test_landing_matches_closed_form():
     v0 = np.array([3.0, 0.5, 2.0])
     throw = simulate_throw(p0, v0, dt=1 / 60)
 
-    t_land = (v0[2] + np.sqrt(v0[2]**2 + 2 * GRAVITY * p0[2])) / GRAVITY
+    # The throw ends when the center is one ball radius above the floor.
+    drop = p0[2] - BALL_RADIUS
+    t_land = (v0[2] + np.sqrt(v0[2]**2 + 2 * GRAVITY * drop)) / GRAVITY
     assert np.isclose(throw['landing_time'], t_land, atol=1e-6)
     assert np.allclose(throw['landing_point'][:2], p0[:2] + v0[:2] * t_land, atol=1e-6)
 
@@ -37,7 +40,7 @@ def test_frames_stay_above_floor():
 def test_drag_shortens_throw():
     p0, v0 = [0, 0, 1.2], [8, 0, 4]
     no_drag = simulate_throw(p0, v0, dt=1 / 60)
-    with_drag = simulate_throw(p0, v0, dt=1 / 60, drag=TENNIS_BALL_DRAG)
+    with_drag = simulate_throw(p0, v0, dt=1 / 60, drag=BALL_DRAG)
     assert with_drag['landing_point'][0] < no_drag['landing_point'][0]
 
 

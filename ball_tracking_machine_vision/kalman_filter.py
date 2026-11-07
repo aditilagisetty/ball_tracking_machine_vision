@@ -25,7 +25,8 @@ class BallKalmanFilter:
 
     def __init__(self, sigma_a, measurement_noise):
         """
-        sigma_a: strength of unmodeled acceleration (m/s²), start around 2.
+        sigma_a: strength of unmodeled acceleration (m/s²). About 1.5 covers the
+            drag on our playground ball (from the NEES sweep).
         measurement_noise: 3×3 R matrix (m²), e.g. np.diag(np.array([0.01, 0.01, 0.03])**2).
             Used whenever a measurement doesn't come with its own R.
         """
