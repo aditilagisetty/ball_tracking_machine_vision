@@ -1,26 +1,77 @@
 """Extrapolating the filter state forward to find where the ball lands.
 
-The filter tracks the ball's CENTER, so the ball "lands" when its center is
+The filter tracks the ball's CENTER, so the ball lands when its center is
 one radius above the floor (floor_height + ball_radius), the same rule
 simulate_throw uses. The landing point reported is the spot on the floor
 directly below the center at that moment (z = floor_height), which is what
 the 10 cm floor grid measures.
+
+Essentially, takes the velocities from the Kalman Filter to use for the landing 
+prediction model. 
 """
 
-from ball_tracking_machine_vision.simulation import BALL_RADIUS
+import numpy as np
+
+from ball_tracking_machine_vision.kalman_filter import (
+    gravity_input,
+    process_noise,
+    transition_matrix,
+)
+from ball_tracking_machine_vision.simulation import BALL_RADIUS, GRAVITY
 
 
-def propagate_trajectory(state, covariance, dt, max_time):
-    """Step the state forward and return future positions with uncertainty."""
-    pass
+def propagate_trajectory(state, covariance, sigma_a, duration, dt=1 / 60):
+    """Step a state and its uncertainty forward in time with no measurements
 
+    Uses the filters own physics of F, gravity, and Q so the future is predicted
+    exactly the way the filter predicts between frames. Works on copies so
+    the live filter is never touched
 
-def find_landing_point(trajectory, floor_height=0.0, ball_radius=BALL_RADIUS):
-    """Return where and when the trajectory touches the floor.
-
-    Contact is when the center reaches floor_height + ball_radius.
+    Returns dict with t (N), state (N, 6), covariance (N, 6, 6),
+    starting at time 0 which is effectivelt now and ending exactly at duration
     """
-    pass
+    x = state.copy()
+    P = covariance.copy()
+    t = 0.0
+    times, states, covariances = [t], [x.copy()], [P.copy()]
+
+    while t < duration - 1e-12:          # tiny tolerance so rounding cant add an extra step
+        step = min(dt, duration - t)     # last step is shorter to land exactly on duration
+        F = transition_matrix(step)
+        x = F @ x + gravity_input(step)                    # same as the filters predict
+        P = F @ P @ F.T + process_noise(step, sigma_a)     # uncertainty grows each step
+        t += step
+        times.append(t)
+        states.append(x.copy())
+        covariances.append(P.copy())
+
+    return {
+        't': np.array(times),
+        'state': np.array(states),
+        'covariance': np.array(covariances),
+    }
+
+
+def find_landing_point(state, floor_height=0.0, ball_radius=BALL_RADIUS):
+    """where and when the ball touches the floor assuming gravity only
+
+    state: [x, y, z, vx, vy, vz] of the ball's center
+    Contact is when the center reaches floor_height + ball_radius
+    Returns (landing_point, time_to_landing) or None if it never lands.
+    landing_point is on the floor directly below the center: (x, y, floor_height)
+    """
+    contact_height = floor_height + ball_radius
+    x, y, z, vx, vy, vz = state
+
+    # Solve z + vz*t - ½ g t² = contact_height for t using quadratic formula
+    drop = z - contact_height
+    discriminant = vz**2 + 2 * GRAVITY * drop
+    if discriminant < 0:
+        return None     # only possible if the ball is already below contact height
+
+    t = (vz + np.sqrt(discriminant)) / GRAVITY   # the + root is the future one
+    landing_point = np.array([x + vx * t, y + vy * t, floor_height])
+    return landing_point, t
 
 
 def predict_landing(kalman_filter, floor_height=0.0, ball_radius=BALL_RADIUS,
