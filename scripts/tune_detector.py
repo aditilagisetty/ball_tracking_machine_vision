@@ -1,12 +1,16 @@
 import cv2
 
 from ball_tracking_machine_vision.ball_detector import detect_ball
+from ball_tracking_machine_vision.camera_capture import open_camera
+
+
+"""Live view with sliders for tuning HSV thresholds and Hough parameters."""
 
 
 def main():
     # Select camera 0 is webcam, right now 4 is zed camera
-    source = "/dev/video0" # Example: "/dev/video4"
-    cap = cv2.VideoCapture(source)
+    source = "/dev/video4" # Example: "/dev/video4"
+    cap = open_camera(source, resolution=(2560, 720), fps=30)
 
     # Error if video source cant be opened
     if not cap.isOpened():
@@ -67,7 +71,7 @@ def main():
             elif key == ord("h"):
                 method = "hough"
     finally:
-        # Free camera and close windows
+        # Free camera and close 
         cap.release()
         cv2.destroyAllWindows()
 
