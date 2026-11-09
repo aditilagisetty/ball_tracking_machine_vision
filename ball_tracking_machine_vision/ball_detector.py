@@ -12,7 +12,14 @@ import numpy as np
 
 
 def make_color_mask(image, hsv_low, hsv_high): 
-    """Threshold the image in HSV to isolate ball-colored pixels."""
+    """Threshold the image in HSV to isolate ball-colored pixels.
+    Args:
+        image: String containing image path
+        hsv_low: Low of color range to detect
+        hsv_high: High of color range to detect
+    Returns: 
+        Color mask array 
+    """
     # Convert image to HSV
     hsv = cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
     # Create color mask
@@ -78,11 +85,11 @@ def detect_ball_hough(image, hough_params):
 # Keep the existing names for compatibility with tune_detector.py.
 # Both ranges cover orange so the second mask does not also select red.
 # Basketball HSV detection
-RED_LOW_1 = (0, 150, 40)
-RED_HIGH_1 = (12, 255, 200)
+RED_LOW_1 = (0, 190, 160)
+RED_HIGH_1 = (10, 255, 255)
 
-RED_LOW_2 = (170, 150, 40)
-RED_HIGH_2 = (179, 255, 200)
+RED_LOW_2 = (0, 190, 160)
+RED_HIGH_2 = (10, 255, 255)
 
 HOUGH_PARAMS = {
     "dp": 1.2,
@@ -102,5 +109,20 @@ def detect_ball(image, method):
 
 
 def detect_stereo(left, right, method):
-    """Detect the ball in both images of a rectified stereo pair."""
-    pass
+    """Detect the ball in both images of a rectified stereo pair.
+    Args:
+        left: left image from stereo camera
+        right: right image from stereo camera
+        method: the detection method (either color or hough)
+    Returns:
+        (left_detection, right_detection), each containing (u, v, radius).
+    """
+    # Detect ball for each image
+    left_detection = detect_ball(left, method)
+    right_detection = detect_ball(right, method)
+
+    # Return none if no detection
+    if left_detection is None or right_detection is None:
+        return None, None
+
+    return left_detection, right_detection
