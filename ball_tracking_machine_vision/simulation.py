@@ -43,8 +43,9 @@ def drag_coefficient(diameter, mass, cd=SPHERE_DRAG_CD, air_density=AIR_DENSITY)
     return 0.5 * air_density * cd * area / mass
 
 
-# Drag for our ball, from the placeholders above: about 0.037 1/m, so roughly
-# 0.9 m/s^2 of slowing at 5 m/s and 1.8 m/s^2 at 7 m/s. 
+# Drag for our ball, from the numbers above: about 0.18 1/m, so roughly
+# 4.5 m/s^2 of slowing at 5 m/s and 8.8 m/s^2 at 7 m/s (almost as strong as
+# gravity). A small, light ball like ours slows down a lot.
 BALL_DRAG = drag_coefficient(BALL_DIAMETER, BALL_MASS)
 
 

@@ -20,13 +20,15 @@ GATE_WARMUP_UPDATES = 10
 # Otherwise one bad velocity estimate can lock the filter out for the rest of the throw.
 MAX_CONSECUTIVE_REJECTIONS = 5
 
+# How much unmodeled acceleration (m/s²) the filter allows for
+SIGMA_A = 2.55
+
 
 class BallKalmanFilter:
 
     def __init__(self, sigma_a, measurement_noise):
         """
-        sigma_a: strength of unmodeled acceleration (m/s²). About 1.5 covers the
-            drag on our ball (from the NEES sweep).
+        sigma_a: strength of unmodeled acceleration 
         measurement_noise: 3×3 R matrix (m²), e.g. np.diag(np.array([0.01, 0.01, 0.03])**2).
             Used whenever a measurement doesn't come with its own R.
         """

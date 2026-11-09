@@ -7,7 +7,7 @@ numbers there are placeholders until we measure the real ones.
 
 import numpy as np
 
-from ball_tracking_machine_vision.kalman_filter import BallKalmanFilter
+from ball_tracking_machine_vision.kalman_filter import SIGMA_A, BallKalmanFilter
 from ball_tracking_machine_vision.simulation import (
     BALL_DRAG,
     add_stereo_noise,
@@ -107,7 +107,7 @@ def average_nees(sigma_a, drag, n_throws=50):
     return np.mean(values)
 
 
-def single_throw_demo(sigma_a=1.5):
+def single_throw_demo(sigma_a=SIGMA_A):
     """Filter one throw and compare the final estimate to the truth."""
     throw, meas = simulate_measurements(seed=0, drag=BALL_DRAG)
 
@@ -137,7 +137,7 @@ def main():
     # sigma_a is BELIEF (how wrong the filter thinks its gravity-only model might be).
     print('drag    sigma_a   NEES (ideal 6)')
     for drag in [0.0, BALL_DRAG]:
-        for sigma_a in [1.0, 1.5, 2.0]:
+        for sigma_a in [1.5, SIGMA_A, 3.5]:
             print(f'{drag:<8.3f}{sigma_a:<10}{average_nees(sigma_a, drag):.2f}')
 
 

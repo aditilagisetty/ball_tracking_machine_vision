@@ -15,7 +15,7 @@ from ball_tracking_machine_vision.baseline import (
     fit_trajectory,
     predict_landing_baseline,
 )
-from ball_tracking_machine_vision.kalman_filter import BallKalmanFilter
+from ball_tracking_machine_vision.kalman_filter import SIGMA_A, BallKalmanFilter
 from ball_tracking_machine_vision.landing_predictor import predict_landing
 from ball_tracking_machine_vision.simulation import BALL_RADIUS
 
@@ -56,7 +56,7 @@ def run_kalman_filter(meas, sigma_a):
     return kf
 
 
-def evaluate_throw(meas, true_landing, landing_time, sigma_a=1.5,
+def evaluate_throw(meas, true_landing, landing_time, sigma_a=SIGMA_A,
                    fractions=FRACTIONS, floor_height=0.0,
                    ball_radius=BALL_RADIUS, rng=None):
     """filter and baseline errors for one throw at each fraction

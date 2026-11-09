@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from ball_tracking_machine_vision.kalman_filter import SIGMA_A
 from ball_tracking_machine_vision.simulation import BALL_DRAG
 from scripts.simulate_filter import run_filter, simulate_measurements
 
@@ -12,7 +13,7 @@ def test_tracks_simulated_throw():
 
     # run through every frame 
     # t and x end up holding the last frames values
-    for t, x, P in run_filter(meas, sigma_a=1.5):
+    for t, x, P in run_filter(meas, sigma_a=SIGMA_A):
         pass
     
     i = np.argmin(np.abs(throw['t']-t)) # true frame at the same time
@@ -25,7 +26,7 @@ def test_error_within_reported_uncertainty():
     inside = []
     for seed in range(30):
         throw, meas = simulate_measurements(seed, BALL_DRAG)
-        for k, (t, x, P) in enumerate(run_filter(meas, sigma_a=1.5)):
+        for k, (t, x, P) in enumerate(run_filter(meas, sigma_a=SIGMA_A)):
             if k < 5: # skip startup frames
                 continue
             i = np.argmin(np.abs(throw['t'] - t))
@@ -44,6 +45,6 @@ def test_recovers_from_bad_start():
     from ball_tracking_machine_vision.simulation import BALL_DRAG
 
     throw, meas = simulate_measurements(3, BALL_DRAG)
-    for t, x, P in run_filter(meas, sigma_a=1.5):
+    for t, x, P in run_filter(meas, sigma_a=SIGMA_A):
         i = np.argmin(np.abs(throw['t'] - t))
         assert np.linalg.norm(throw['position'][i] - x[:3]) < 0.3

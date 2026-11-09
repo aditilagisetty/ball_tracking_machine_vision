@@ -9,6 +9,7 @@ from ball_tracking_machine_vision.evaluation import (
     evaluate_throw,
     print_table,
 )
+from ball_tracking_machine_vision.kalman_filter import SIGMA_A
 from ball_tracking_machine_vision.simulation import (
     BALL_DRAG,
     add_stereo_noise,
@@ -20,7 +21,6 @@ from ball_tracking_machine_vision.stereo_noise import make_camera
 
 N_THROWS = 20
 DROP_RATE = 0.1
-SIGMA_A = 1.5
 
 
 def simulated_throw(seed, camera):
