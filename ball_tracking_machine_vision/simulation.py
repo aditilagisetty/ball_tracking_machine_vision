@@ -16,11 +16,11 @@ from ball_tracking_machine_vision.stereo_noise import (
 GRAVITY = 9.81
 
 # The ball
-# Diameter in meters. PLACEHOLDER: 8.5 inches 
-BALL_DIAMETER = 0.216
+# Diameter in meters. PLACEHOLDER: 2.5 inches 
+BALL_DIAMETER = 0.0635
 
-# Mass in kilograms. PLACEHOLDER: about 300 g 
-BALL_MASS = 0.30
+# Mass in kilograms. PLACEHOLDER: about 5 g 
+BALL_MASS = 0.005
 
 # The camera tracks the ball's CENTER, and the center is one radius above the
 # floor when the ball touches down. Landing is detected at that height, not z = 0.
@@ -28,8 +28,8 @@ BALL_RADIUS = BALL_DIAMETER / 2
 
 AIR_DENSITY = 1.2            # kg/m^3, room temperature at sea level
 
-# Drag coefficient of a sphere. PLACEHOLDER: about 0.5 
-SPHERE_DRAG_CD = 0.5
+# Drag coefficient of a sphere. PLACEHOLDER: about 0.47
+SPHERE_DRAG_CD = 0.47
 
 
 def drag_coefficient(diameter, mass, cd=SPHERE_DRAG_CD, air_density=AIR_DENSITY):
