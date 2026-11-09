@@ -15,6 +15,9 @@ from ball_tracking_machine_vision.stereo_noise import (
 
 GRAVITY = 9.81
 
+FRAME_RATE = 15
+FRAME_DT = 1 / FRAME_RATE
+
 # The ball
 # Diameter in meters. PLACEHOLDER: 2.5 inches 
 BALL_DIAMETER = 0.0635
@@ -124,18 +127,20 @@ def simulate_throw(initial_position, initial_velocity, dt, floor_height=0.0,
 def random_throw_conditions(rng, floor_height=0.0):
     """Random but realistic starting position and velocity for a hand toss.
 
-    Released around chest height, thrown mostly along +x with some sideways
-    spread and an upward arc. Returns (initial_position, initial_velocity).
+    Matched to the recorded throws: tossed from a chair, released about
+    1 m up, moving 1 to 2.5 m/s sideways, in the air for about 0.5 to 1 s.
+    Thrown mostly along +x with some spread and an upward arc.
+    Returns (initial_position, initial_velocity).
     """
     initial_position = np.array([
         rng.uniform(-0.2, 0.2),
         rng.uniform(-0.2, 0.2),
-        floor_height + rng.uniform(1.0, 1.6),
+        floor_height + rng.uniform(0.9, 1.2),
     ])
     initial_velocity = np.array([
-        rng.uniform(2.0, 4.0),
-        rng.uniform(-0.5, 0.5),
-        rng.uniform(1.5, 4.0),
+        rng.uniform(1.0, 2.5),
+        rng.uniform(-0.3, 0.3),
+        rng.uniform(0.5, 3.5),
     ])
     return initial_position, initial_velocity
 

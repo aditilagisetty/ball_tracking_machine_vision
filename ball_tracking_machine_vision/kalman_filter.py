@@ -13,7 +13,9 @@ GATE_THRESHOLD = 11.34
 
 # Don't gate the first few updates. With only 2-3 points the velocity estimate
 # can be badly off, and gating on a bad prediction rejects good measurements.
-GATE_WARMUP_UPDATES = 10
+# At 15 fps a throw is only about 7 to 15 frames, so 10 would mean never gating.
+# 3 gives the same NEES on the simulation as 10 did.
+GATE_WARMUP_UPDATES = 3
 
 # If this many measurements in a row get rejected, assume the filter has gone
 # wrong (not the camera) and restart it from the latest measurement.
@@ -21,7 +23,11 @@ GATE_WARMUP_UPDATES = 10
 MAX_CONSECUTIVE_REJECTIONS = 5
 
 # How much unmodeled acceleration (m/s²) the filter allows for
-SIGMA_A = 2.55
+# Chosen with the NEES sweep in scripts/simulate_filter.py, with the simulation
+# matched to the recordings (15 fps, VGA, PIXEL_NOISE = 2.5, camera 0.77 m up)
+# and R worked out at the predicted position: 1.85 gives NEES ≈ 5.95 over
+# 200 throws. Rerun the sweep if the ball, frame rate, or camera changes.
+SIGMA_A = 1.85
 
 
 class BallKalmanFilter:
@@ -40,15 +46,19 @@ class BallKalmanFilter:
         self.last_time = None
         self.n_updates = 0          # accepted updates since initialize (for the warmup)
         self.n_rejected = 0         # rejections in a row (for the lockout reset)
+        self.last_nis = None        # NIS of the latest measurement (see update)
 
     def initialize(self, first_measurement, timestamp, R=None):
         """Start the filter from the first 3D measurement.
 
         R: optional 3×3 noise for this measurement. Stereo noise depends on
         distance, so each measurement can bring its own R; if None, the
-        fixed self.R from __init__ is used.
+        fixed self.R from __init__ is used. Can also be a function of
+        position (see step); here it is evaluated at the measurement.
         """
         R = self.R if R is None else R
+        if callable(R):
+            R = R(np.asarray(first_measurement))
         self.x = np.concatenate([first_measurement, np.zeros(3)])
         self.P = np.zeros((6, 6))
         self.P[:3, :3] = R                     # position: as good as one measurement
@@ -74,8 +84,11 @@ class BallKalmanFilter:
 
         # reject measurements implausibly far from the prediction,
         # but only once the filter has had enough updates to trust its prediction
+        # NIS the residual measured in units of its expected size S -- cuz we dont know true position
+        self.last_nis = y @ np.linalg.solve(S, y)
+
         warmed_up = self.n_updates >= GATE_WARMUP_UPDATES
-        if warmed_up and y @ np.linalg.solve(S, y) > GATE_THRESHOLD:
+        if warmed_up and self.last_nis > GATE_THRESHOLD:
             self.n_rejected += 1
             if self.n_rejected >= MAX_CONSECUTIVE_REJECTIONS:
                 # lockout: restart from this measurement (velocity unknown again)
@@ -97,9 +110,19 @@ class BallKalmanFilter:
         return self.x.copy(), self.P.copy()
 
     def step(self, measurement, timestamp, R=None):
-        """Predict to this timestamp, then update. Handles uneven frame gaps."""
+        """Predict to this timestamp, then update. Handles uneven frame gaps.
+
+        R: 3×3 matrix, or a function that takes a position and gives back R.
+        A function is evaluated at the PREDICTED position, not the measured one.
+        Stereo depth noise grows with distance squared, so working R out at a
+        noisy measurement that happens to be too close makes R too small, and
+        the filter trusts exactly the measurements it shouldn't. The
+        prediction is steadier, which brought NEES from about 6.7+ down to 6.
+        """
         self.predict(timestamp - self.last_time)
         self.last_time = timestamp
+        if callable(R):
+            R = R(self.x[:3])
         return self.update(measurement, R)
 
 

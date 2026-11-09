@@ -10,6 +10,7 @@ import numpy as np
 from ball_tracking_machine_vision.kalman_filter import SIGMA_A, BallKalmanFilter
 from ball_tracking_machine_vision.simulation import (
     BALL_DRAG,
+    FRAME_DT,
     add_stereo_noise,
     drop_frames,
     random_throw_conditions,
@@ -18,6 +19,7 @@ from ball_tracking_machine_vision.simulation import (
 from ball_tracking_machine_vision.stereo_noise import (
     depth_of,
     make_camera,
+    measurement_covariance,
     stereo_noise_std,
 )
 
@@ -61,7 +63,7 @@ def simulate_measurements(seed, drag):
     # Each seed gives a different but repeatable throw.
     # Seed 7 is always the same throw so results can be compared fairly when sigma_a changes
     rng = np.random.default_rng(seed)
-    throw = simulate_throw(*random_throw_conditions(rng), dt=1 / 60, drag=drag) # unpacks the (position, velocity) into 2 arguments
+    throw = simulate_throw(*random_throw_conditions(rng), dt=FRAME_DT, drag=drag) # unpacks the (position, velocity) into 2 arguments
 
     # how much noise the simulated camera actually adds
     # stereo noise small sideways and large in depth, then some frames missed
@@ -77,10 +79,14 @@ def run_filter(meas, sigma_a):
     # the camera actually does. The R given to __init__ is only a fallback
     # for calls that don't pass their own R; every call below does.
     kf = BallKalmanFilter(sigma_a, meas['covariance'][0])
-    kf.initialize(meas['position'][0], meas['t'][0], R=meas['covariance'][0])
 
-    for t, z, R in zip(meas['t'][1:], meas['position'][1:], meas['covariance'][1:]):
-        kf.step(z, t, R=R)
+    # R is worked out at the filters predicted position not the measured one
+    def noise(position):
+        return measurement_covariance(position, CAMERA)
+
+    kf.initialize(meas['position'][0], meas['t'][0], R=noise)
+    for t, z in zip(meas['t'][1:], meas['position'][1:]):
+        kf.step(z, t, R=noise)
         x, P = kf.get_state()
         yield t, x, P   # hand back this frame's estimate, then carry on with the next one
 

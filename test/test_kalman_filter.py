@@ -17,8 +17,13 @@ def test_tracks_simulated_throw():
         pass
     
     i = np.argmin(np.abs(throw['t']-t)) # true frame at the same time
-    error = np.linalg.norm(throw['position'][i] - x[:3])
-    assert error < 0.05 # within 5 cm
+    error = throw['position'][i] - x[:3]
+
+    # at VGA the cameras depth noise is about 12 cm at 2 m so a fixed 5 cm
+    # limit is too strict the error should be inside the filters
+    # own 99% uncertainty (chi-square, 3 numbers) and never more than 20 cm
+    assert error @ np.linalg.solve(P[:3, :3], error) < 11.34
+    assert np.linalg.norm(error) < 0.20
 
 
 def test_error_within_reported_uncertainty():

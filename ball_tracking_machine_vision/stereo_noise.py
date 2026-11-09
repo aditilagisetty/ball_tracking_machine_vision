@@ -27,20 +27,14 @@ import numpy as np
 # distance between the left and right lenses (m) 
 BASELINE = 0.1198
 
-# focal length in pixels at 720p (HD)
-FOCAL_LENGTH_PX = 531.9
+FOCAL_LENGTH_PX = 265.9
 
-# How far off the ball detector is, in pixels. PLACEHOLDER: about 0.5 px for
-# a sharp ball, 1-2 px when it is motion blurred. Replace with the pixel error
-# from the hand-labeled detection test.
-PIXEL_NOISE = 1.0
+# How far off the ball detector is in pixels
+PIXEL_NOISE = 2.5
 
-# Where the camera is in the world frame and what it's pointed at (m).
-# PLACEHOLDER: about 2 m to the side of the throws, looking across them,
-# so the ball moves sideways in the image and depth (the noisy axis) changes
-# as little as possible. Replace with the measured mounting position.
-CAMERA_POSITION = np.array([1.5, -2.0, 1.0])
-CAMERA_TARGET = np.array([1.5, 0.0, 0.8])
+# Where the simulated camera is in the world frame and what it's pointed at (m)
+CAMERA_POSITION = np.array([1.0, -1.5, 0.77])
+CAMERA_TARGET = np.array([1.0, 0.0, 0.77])
 
 
 def look_at(camera_position, target):

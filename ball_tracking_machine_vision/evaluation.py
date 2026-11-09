@@ -9,6 +9,9 @@ flight for both the kalman filter and the baseline
     'covariance': (N, 3, 3) noise matrix for each measurement
 """
 
+import csv
+from pathlib import Path
+
 import numpy as np
 
 from ball_tracking_machine_vision.baseline import (
@@ -17,7 +20,14 @@ from ball_tracking_machine_vision.baseline import (
 )
 from ball_tracking_machine_vision.kalman_filter import SIGMA_A, BallKalmanFilter
 from ball_tracking_machine_vision.landing_predictor import predict_landing
+from ball_tracking_machine_vision.pipeline import (
+    image_size_of,
+    make_calibration,
+    track_throw,
+    video_frames,
+)
 from ball_tracking_machine_vision.simulation import BALL_RADIUS
+from ball_tracking_machine_vision.stereo_noise import measurement_covariance
 
 # how much of the flight we watch before each guess
 FRACTIONS = [0.1, 0.25, 0.5, 0.75, 0.9]
@@ -28,9 +38,25 @@ COVERAGE_THRESHOLD_2D = 5.99
 
 
 def load_ground_truth(path):
-    """load the real landing spots"""
-    # todo: depends on how we save the real throws
-    pass
+    """load the real landing spots from a csv file
+
+    release_frame: first frame where the ball has left the hand
+    landing_frame: first frame where the ball touches the floor
+    landing_x, landing_y: where it touched, in the world frame (m)
+
+    gives back a list with one dict per throw
+    """
+    throws = []
+    with open(path) as file:
+        for row in csv.DictReader(file):
+            throws.append({
+                'video': row['video'],
+                'release_frame': int(row['release_frame']),
+                'landing_frame': int(row['landing_frame']),
+                'landing_point': np.array([float(row['landing_x']),
+                                           float(row['landing_y']), 0.0]),
+            })
+    return throws
 
 
 def landing_error(predicted, true_landing):
@@ -47,18 +73,26 @@ def measurements_up_to(meas, cutoff_time):
     return {key: values[keep] for key, values in meas.items()}
 
 
-def run_kalman_filter(meas, sigma_a):
-    """run a new filter over these measurements and give it back"""
+def run_kalman_filter(meas, sigma_a, camera=None):
+    """run a new filter over these measurements and give it back
+
+    camera: if given, each R is worked out at the filters predicted position
+    (see BallKalmanFilter.step). if None, the R saved with each measurement is used
+    """
     kf = BallKalmanFilter(sigma_a, meas['covariance'][0])
-    kf.initialize(meas['position'][0], meas['t'][0], R=meas['covariance'][0])
-    for t, z, R in zip(meas['t'][1:], meas['position'][1:], meas['covariance'][1:]):
+    if camera is None:
+        noise = list(meas['covariance'])
+    else:
+        noise = [lambda p: measurement_covariance(p, camera)] * len(meas['t'])
+    kf.initialize(meas['position'][0], meas['t'][0], R=noise[0])
+    for t, z, R in zip(meas['t'][1:], meas['position'][1:], noise[1:]):
         kf.step(z, t, R=R)
     return kf
 
 
 def evaluate_throw(meas, true_landing, landing_time, sigma_a=SIGMA_A,
                    fractions=FRACTIONS, floor_height=0.0,
-                   ball_radius=BALL_RADIUS, rng=None):
+                   ball_radius=BALL_RADIUS, rng=None, camera=None):
     """filter and baseline errors for one throw at each fraction
 
     inputs
@@ -86,7 +120,7 @@ def evaluate_throw(meas, true_landing, landing_time, sigma_a=SIGMA_A,
         # kalman filter
         # track what we saw, then push it forward to the floor
         if len(seen['t']) >= 2:
-            kf = run_kalman_filter(seen, sigma_a)
+            kf = run_kalman_filter(seen, sigma_a, camera)
             prediction = predict_landing(kf, floor_height, ball_radius, rng=rng)
             if prediction is not None:
                 row['filter_error'] = landing_error(prediction['point'], true_landing)
@@ -153,9 +187,38 @@ def print_table(table):
               f"{row['baseline_failed']:>18}")
 
 
-def evaluate_all(data_dir, ground_truth_path):
-    """run the whole evaluation on all the real throws"""
-    # todo once real throws exist: load each recording from data_dir,
-    # match it to its real landing from load_ground_truth, run
-    # evaluate_throw on each, then error_vs_fraction_observed
-    pass
+def evaluate_all(data_dir, ground_truth_path, sigma_a=SIGMA_A,
+                 fractions=FRACTIONS, calibration=None, rng=None):
+    """run the whole evaluation on all the real throws
+
+    gives back (table, throw_rows) the error_vs_fraction_observed table
+    and each throws own rows
+    
+    throws with under 2 measurements are skipped
+    """
+    rng = np.random.default_rng(0) if rng is None else rng
+    throw_rows = []
+
+    for throw in load_ground_truth(ground_truth_path):
+        video = Path(data_dir) / throw['video']
+        if calibration is None:
+            calibration = make_calibration(image_size_of(video))
+
+        frames = list(video_frames(video, throw['release_frame'], throw['landing_frame']))
+        if not frames:
+            print(f"skipping {throw['video']}: no frames in that range")
+            continue
+        landing_time = frames[-1][3]
+
+        # only the frames before the landing frame go through the pipeline
+        track = track_throw(frames[:-1], calibration, sigma_a=sigma_a, rng=rng)
+        meas = track['measurements']
+        if len(meas['t']) < 2:
+            print(f"skipping {throw['video']}: only {len(meas['t'])} measurements")
+            continue
+
+        throw_rows.append(evaluate_throw(meas, throw['landing_point'], landing_time,
+                                         sigma_a=sigma_a, fractions=fractions, rng=rng,
+                                         camera=calibration['camera']))
+
+    return error_vs_fraction_observed(throw_rows, fractions), throw_rows

@@ -86,5 +86,7 @@ def test_add_stereo_noise_matches_covariance():
     throw = simulate_throw([0, 0, 1.0], [0, 0, 0], dt=1 / 1000)   # ball barely moves
     noisy = add_stereo_noise(throw, camera, rng)
     spread = np.std(noisy['position'] - throw['position'], axis=0)
-    expected = np.sqrt(np.diag(noisy['covariance'][0]))
+    # R at the true position the saved R is worked out at the noisy
+    # measured position which is off when the depth noise is large
+    expected = np.sqrt(np.diag(measurement_covariance(throw['position'][0], camera)))
     assert np.allclose(spread, expected, rtol=0.15)
