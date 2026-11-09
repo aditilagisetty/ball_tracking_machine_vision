@@ -20,16 +20,15 @@ Frames:
 
 import numpy as np
 
-# ZED 2i numbers. PLACEHOLDERS until we measure / read the real ones.
+# ZED 2i numbers
+# baseline and focal length are from the calibration file
+# the rest are PLACEHOLDERS until we measure them
 
-# Distance between the left and right lenses (m). This one is from the ZED 2i
-# spec sheet; double-check it against the calibration file.
-BASELINE = 0.12
+# distance between the left and right lenses (m) 
+BASELINE = 0.1198
 
-# Focal length in pixels. PLACEHOLDER: roughly right for 720p, but read the
-# real fx from the calibration file (SN<serial>.conf, [LEFT_CAM_HD] section).
-# It changes with resolution: about half at VGA, about 1.5x at 1080p.
-FOCAL_LENGTH_PX = 500.0
+# focal length in pixels at 720p (HD)
+FOCAL_LENGTH_PX = 531.9
 
 # How far off the ball detector is, in pixels. PLACEHOLDER: about 0.5 px for
 # a sharp ball, 1-2 px when it is motion blurred. Replace with the pixel error
