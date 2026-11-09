@@ -1,9 +1,4 @@
 """run the evaluation and print the landing error table
-
-for now this uses fake throws (stereo noise, missed frames, drag)
-once real throws are recorded, evaluate_all will do the same thing on them
-
-run from the repo folder:
     PYTHONPATH=. .venv/bin/python scripts/run_evaluation.py
 """
 

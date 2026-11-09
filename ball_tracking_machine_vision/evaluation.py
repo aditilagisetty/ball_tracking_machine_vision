@@ -83,7 +83,8 @@ def evaluate_throw(meas, true_landing, landing_time, sigma_a=1.5,
         row = {'fraction': fraction, 'filter_error': None,
                'baseline_error': None, 'filter_inside': None}
 
-        # kalman filter: track what we saw, then push it forward to the floor
+        # kalman filter
+        # track what we saw, then push it forward to the floor
         if len(seen['t']) >= 2:
             kf = run_kalman_filter(seen, sigma_a)
             prediction = predict_landing(kf, floor_height, ball_radius, rng=rng)
@@ -95,7 +96,8 @@ def evaluate_throw(meas, true_landing, landing_time, sigma_a=1.5,
                 d2 = miss @ np.linalg.solve(prediction['covariance'], miss)
                 row['filter_inside'] = d2 < COVERAGE_THRESHOLD_2D
 
-        # baseline: fit curves to the same measurements and extend them
+        # baseline
+        #fit curves to the same measurements and extend them
         if len(seen['t']) >= 3:
             fit = fit_trajectory(seen['t'], seen['position'])
             result = predict_landing_baseline(fit, floor_height, ball_radius)
@@ -110,7 +112,7 @@ def error_vs_fraction_observed(throw_rows, fractions=FRACTIONS):
     """combine many throws into one table with the middle (median) error per fraction
 
     inputs
-        throw_rows: one entry per throw, each one is what evaluate_throw gave back
+        throw_rows: one entry per throw each one is what evaluate_throw gave back
 
     gives back a list with one dict per fraction
         'fraction'
