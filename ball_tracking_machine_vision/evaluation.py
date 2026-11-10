@@ -21,10 +21,9 @@ from ball_tracking_machine_vision.baseline import (
 from ball_tracking_machine_vision.kalman_filter import SIGMA_A, BallKalmanFilter
 from ball_tracking_machine_vision.landing_predictor import predict_landing
 from ball_tracking_machine_vision.pipeline import (
-    image_size_of,
-    make_calibration,
+    calibration_for,
     track_throw,
-    video_frames,
+    throw_frames,
 )
 from ball_tracking_machine_vision.simulation import BALL_RADIUS
 from ball_tracking_machine_vision.stereo_noise import measurement_covariance
@@ -40,6 +39,8 @@ COVERAGE_THRESHOLD_2D = 5.99
 def load_ground_truth(path):
     """load the real landing spots from a csv file
 
+    video: a video file (goodvideo1.mp4) or a throw folder saved by
+        scripts/record.py (throw_01), inside the folder given to evaluate_all
     release_frame: first frame where the ball has left the hand
     landing_frame: first frame where the ball touches the floor
     landing_x, landing_y: where it touched, in the world frame (m)
@@ -202,9 +203,10 @@ def evaluate_all(data_dir, ground_truth_path, sigma_a=SIGMA_A,
     for throw in load_ground_truth(ground_truth_path):
         video = Path(data_dir) / throw['video']
         if calibration is None:
-            calibration = make_calibration(image_size_of(video))
+            # uses the folder's camera_pose.json when there is one
+            calibration = calibration_for(video)
 
-        frames = list(video_frames(video, throw['release_frame'], throw['landing_frame']))
+        frames = list(throw_frames(video, throw['release_frame'], throw['landing_frame']))
         if not frames:
             print(f"skipping {throw['video']}: no frames in that range")
             continue

@@ -11,7 +11,7 @@ import numpy as np
 
 from ball_tracking_machine_vision.camera_capture import build_rectification_maps
 from ball_tracking_machine_vision.evaluation import evaluate_all
-from ball_tracking_machine_vision.pipeline import track_throw, video_frames
+from ball_tracking_machine_vision.pipeline import throw_frames, track_throw, video_frames
 from ball_tracking_machine_vision.simulation import BALL_RADIUS, simulate_throw
 from ball_tracking_machine_vision.stereo_noise import make_camera
 
@@ -99,3 +99,43 @@ def test_evaluate_all_on_fake_video(tmp_path):
                                fractions=[0.5, 0.9])
     assert len(rows) == 1
     assert table[-1]['filter_median'] < 0.10      # within 10 cm after 90% of the flight
+
+
+def test_throw_folder_from_recording(tmp_path):
+    """a throw folder in recording.pys format runs
+    through evaluate_all using the saved timestamps instead of frame / fps"""
+    calibration = fake_calibration()
+    throw = fake_throw()
+
+    folder = tmp_path / 'throw_01'
+    folder.mkdir()
+    writer = cv2.VideoWriter(str(folder / 'video.avi'), cv2.VideoWriter_fourcc(*'MJPG'), 60,
+                             (2 * IMAGE_SIZE[0], IMAGE_SIZE[1]))
+    for position in throw['position']:
+        writer.write(draw_frame(position, calibration))
+    landing_frame = len(throw['position'])
+    writer.write(draw_frame(throw['landing_point'] + [0, 0, BALL_RADIUS], calibration))
+    writer.release()
+
+    # uneven capture times, like a real camera: the pipeline must use these
+    times = np.append(throw['t'], throw['landing_time']) + 5.0
+    with open(folder / 'timestamps.csv', 'w', newline='') as file:
+        out = csv.writer(file)
+        out.writerow(['frame_index', 'timestamp'])
+        for i, t in enumerate(times):
+            out.writerow([i, f'{t:.6f}'])
+
+    frames = list(throw_frames(folder, 2, 4))
+    assert [f[0] for f in frames] == [2, 3, 4]
+    assert np.allclose([f[3] for f in frames], times[2:5])
+
+    truth_path = tmp_path / 'ground_truth.csv'
+    with open(truth_path, 'w', newline='') as file:
+        out = csv.writer(file)
+        out.writerow(['video', 'release_frame', 'landing_frame', 'landing_x', 'landing_y'])
+        out.writerow(['throw_01', 0, landing_frame, *throw['landing_point'][:2]])
+
+    table, rows = evaluate_all(tmp_path, truth_path, calibration=calibration,
+                               fractions=[0.5, 0.9])
+    assert len(rows) == 1
+    assert table[-1]['filter_median'] < 0.10

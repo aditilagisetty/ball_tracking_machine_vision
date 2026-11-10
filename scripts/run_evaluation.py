@@ -1,13 +1,17 @@
 """run the evaluation and print the landing error table
 
 
-the error plot is saved to output/ once visualization.plot_error_vs_fraction is written
+the error plot is saved to output/error_vs_fraction_sim.png or _real.png
 """
 
 import argparse
 from pathlib import Path
 
-import numpy as np
+import matplotlib
+
+matplotlib.use('Agg')   # save plots to files no window needed
+import matplotlib.pyplot as plt  
+import numpy as np  
 
 from ball_tracking_machine_vision.evaluation import (
     error_vs_fraction_observed,
@@ -54,21 +58,20 @@ def simulated_table():
 
 
 def save_plot(table, name):
-    """save the error plot if visualization.plot_error_vs_fraction is written yet"""
-    fig = plot_error_vs_fraction(table)
-    if fig is None:
-        print('(no plot yet: visualization.plot_error_vs_fraction is still a stub)')
-        return
+    """save the error vs fraction of flight plot to output/"""
+    fig, _ = plot_error_vs_fraction(table)
     OUTPUT_DIR.mkdir(exist_ok=True)
     path = OUTPUT_DIR / name
     fig.savefig(path, dpi=200)
+    plt.close(fig)
     print(f'saved {path}')
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--real', action='store_true', help='use the recorded throws')
-    parser.add_argument('--videos', default='recordings', help='folder with the videos')
+    parser.add_argument('--videos', default='recordings',
+                        help='folder with the video files or throw folders')
     parser.add_argument('--truth', default='recordings/ground_truth.csv')
     args = parser.parse_args()
 

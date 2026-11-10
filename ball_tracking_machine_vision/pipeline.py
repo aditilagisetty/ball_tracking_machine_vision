@@ -9,6 +9,9 @@
     7. landing guess
 """
 
+import json
+from pathlib import Path
+
 import cv2
 import numpy as np
 
@@ -20,6 +23,7 @@ from ball_tracking_machine_vision.camera_capture import (
 )
 from ball_tracking_machine_vision.kalman_filter import SIGMA_A, BallKalmanFilter
 from ball_tracking_machine_vision.landing_predictor import predict_landing
+from ball_tracking_machine_vision.recording import load_throw
 from ball_tracking_machine_vision.stereo_noise import (
     PIXEL_NOISE,
     make_camera,
@@ -94,12 +98,49 @@ def make_calibration(image_size, camera_pose=None, pixel_noise=PIXEL_NOISE):
     return {'maps': maps, 'P1': P1, 'P2': P2, 'camera': camera}
 
 
+# a recordings folder can hold its own measured camera pose, for example from
+# the floor checkerboard (scripts/grid_ground_truth.py). it overrides the
+# floor based pose above for every video in that folder
+CAMERA_POSE_FILE = 'camera_pose.json'
+
+
+def save_camera_pose(folder, up_in_camera, camera_height, note=''):
+    """write a measured camera pose into a recordings folder"""
+    data = {'up_in_camera': [float(v) for v in up_in_camera],
+            'camera_height': float(camera_height), 'note': note}
+    with open(Path(folder) / CAMERA_POSE_FILE, 'w') as file:
+        json.dump(data, file, indent=2)
+
+
+def load_camera_pose(folder):
+    """(rotation, position) from a folder's camera_pose.json, or None if it has none"""
+    path = Path(folder) / CAMERA_POSE_FILE
+    if not path.exists():
+        return None
+    with open(path) as file:
+        data = json.load(file)
+    return floor_camera_pose(np.array(data['up_in_camera']), data['camera_height'])
+
+
+def calibration_for(throw):
+    """make_calibration for a throw, using its folder's camera_pose.json if there is one
+
+    throw: a video file or a throw folder. the pose file is looked for next to it
+    """
+    throw = Path(throw)
+    return make_calibration(image_size_of(throw), camera_pose=load_camera_pose(throw.parent))
+
+
 def video_frames(video_path, start_frame=0, end_frame=None):
     """yield (frame_number, left, right, timestamp) from a side by side video
 
     start_frame, end_frame: only frames in this range (end included)
-    the time of each frame is frame number / fps since mp4 files do not keep
-    the real capture times. stand in until recording.load_throw is done
+    the time of each frame is the timestamp stored in the video file. the
+    camera drops frames now and then (a 133 ms gap instead of 67 ms), so
+    frame number / fps would give the filter wrong time steps. frame number / fps
+    is only the fallback for a file with no timestamps.
+    used for the single video files in recordings/ and grid_recordings/;
+    throw folders go through throw_frames instead
     """
     video = cv2.VideoCapture(str(video_path))
     if not video.isOpened():
@@ -108,21 +149,65 @@ def video_frames(video_path, start_frame=0, end_frame=None):
     video.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
 
     frame_number = start_frame
+    last_time = None
     try:
         while end_frame is None or frame_number <= end_frame:
             ok, frame = video.read()
             if not ok:
                 break
+            t = video.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
+            if last_time is not None and t <= last_time:
+                t = frame_number / fps          # no usable timestamps in this file
+            last_time = t
             left, right = split_side_by_side(frame)
-            yield frame_number, left, right, frame_number / fps
+            yield frame_number, left, right, t
             frame_number += 1
     finally:
         video.release()
 
 
+def video_file_of(throw):
+    """the video file of a throw"""
+    throw = Path(throw)
+    return throw / 'video.avi' if throw.is_dir() else throw
+
+
+def throw_frames(throw, start_frame=0, end_frame=None):
+    """yield (frame_number, left, right, timestamp) from either kind of recording
+
+    throw: a throw folder saved by recording.record_throw (video.avi and
+        timestamps.csv), read with recording.load_throw so each frame keeps its
+        real capture time; or a single video file like the mp4s in recordings/,
+        timed as frame number / fps
+    start_frame, end_frame: only frames in this range (end included)
+    """
+    throw = Path(throw)
+    if not throw.is_dir():
+        yield from video_frames(throw, start_frame, end_frame)
+        return
+
+    frames = load_throw(throw)
+    try:
+        for frame_number, (left, right, t) in enumerate(frames):
+            if end_frame is not None and frame_number > end_frame:
+                break
+            if frame_number >= start_frame:
+                yield frame_number, left, right, t
+    finally:
+        frames.close()     # releases the video file when stopping early
+
+
+def video_fps(throw):
+    """nominal frames per second of a throws video for writing overlay videos"""
+    video = cv2.VideoCapture(str(video_file_of(throw)))
+    fps = video.get(cv2.CAP_PROP_FPS)
+    video.release()
+    return fps
+
+
 def image_size_of(video_path):
-    """(width, height) of one eye of a side by side video"""
-    video = cv2.VideoCapture(str(video_path))
+    """(width, height) of one eye of a side by side video or of a throw folders video"""
+    video = cv2.VideoCapture(str(video_file_of(video_path)))
     size = (int(video.get(cv2.CAP_PROP_FRAME_WIDTH)) // 2,
             int(video.get(cv2.CAP_PROP_FRAME_HEIGHT)))
     video.release()
