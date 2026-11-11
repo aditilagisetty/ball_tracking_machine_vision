@@ -14,10 +14,6 @@ Open a terminal in the project’s root folder and run:
 ```bash
 python3 -m scripts.run_throw "grid_recordings/video (2).mp4" --start 30 --end 36
 ```
-If that does not work, you may have to run:
-```bash
-env -u GTK_PATH python3 -m scripts.run_throw "grid_recordings/video (2).mp4" --start 30 --end 36
-```
 This processes frames 30–36, covering the ball’s flight. No camera connection is required.
 
 ### Outputs
@@ -39,3 +35,48 @@ Find the recording in `grid_recordings/ground_truth.csv`, then replace:
 - `--end` with its `landing_frame`.
 
 Use the flight range rather than the entire recording, since the motion model does not handle the ball being held, bouncing, or rolling.
+
+## Run Simulation and Evaluation
+
+Run these commands from the project’s root folder after completing setup.
+
+### Evaluate Simulated Throws
+
+```bash
+python3 -m scripts.run_evaluation
+```
+
+This evaluates the Kalman filter and polynomial baseline on 200 simulated throws with measurement noise and dropped frames. It prints prediction errors and saves:
+
+- `output/error_vs_fraction_sim.png`
+
+### Evaluate Recorded Throws
+
+```bash
+python3 -m scripts.run_evaluation --real --videos grid_recordings --truth grid_recordings/ground_truth.csv
+```
+
+This evaluates the recorded grid throws using the flight ranges and reference landing positions in `ground_truth.csv`. It prints prediction errors and saves:
+
+- `output/error_vs_fraction_real.png`
+
+### Test the Filter on Simulated Motion
+
+```bash
+python3 -m scripts.simulate_filter
+```
+
+This runs a simulated-throw demonstration and compares filter uncertainty against actual estimation errors using NEES. It prints results for different process-noise and drag settings.
+
+### Run Automated Tests
+
+```bash
+python3 -m pytest -q
+```
+
+This runs the automated tests. The current repository contains 21 tests. If ros is installed and you are getting a yaml error, run this instead:
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -q
+```
+
+No camera connection is required for these commands. Rerunning evaluation overwrites the corresponding output graph.
