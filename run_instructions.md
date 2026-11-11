@@ -11,9 +11,12 @@ pip install -r requirements.txt
 Open a terminal in the project’s root folder and run:
 
 ```bash
+python3 -m scripts.run_throw "grid_recordings/video (2).mp4" --start 30 --end 36
+```
+If that does not work, you may have to run:
+```bash
 env -u GTK_PATH python3 -m scripts.run_throw "grid_recordings/video (2).mp4" --start 30 --end 36
 ```
-
 This processes frames 30–36, covering the ball’s flight. No camera connection is required.
 
 ### Outputs
