@@ -2,7 +2,7 @@
 
 *By: Aditi Lagisetty and Matthew Townsend*
 ## Run Instructions
-To run our simulation, refer to the run_instructions.md file
+To run our recorded ball tracking, refer to the [run_instructions.md](https://github.com/aditilagisetty/ball_tracking_machine_vision/blob/main/run_instructions.md) file
 
 ## Project Goal and Context
 
