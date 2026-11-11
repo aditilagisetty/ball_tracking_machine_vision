@@ -1,6 +1,8 @@
 # Ball Tracking and Trajectory Prediction
 
 *By: Aditi Lagisetty and Matthew Townsend*
+## Run Instructions
+To run our simulation, refer to the run_instructions.md file
 
 ## Project Goal and Context
 
