@@ -5,6 +5,7 @@ run:
 then check the printed table and run:
     PYTHONPATH=. .venv/bin/python scripts/run_evaluation.py --real --videos grid_recordings --truth grid_recordings/ground_truth.csv
 """
+# Some ai assistance used
 
 import argparse
 import csv

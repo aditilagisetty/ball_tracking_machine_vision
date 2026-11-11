@@ -1,0 +1,37 @@
+{
+  "source_frame": "rectified_left_camera",
+  "image_size": [
+    672,
+    376
+  ],
+  "R_camera_to_world": [
+    [
+      0.9999968102863405,
+      0.0010394142191559467,
+      0.0023019633415036727
+    ],
+    [
+      -0.0023184590500652693,
+      0.016158164676818687,
+      0.9998667603545535
+    ],
+    [
+      0.0010020802252218978,
+      -0.9998689080736323,
+      0.016160522976203275
+    ]
+  ],
+  "camera_position_world": [
+    0.32761463863020557,
+    -1.1453702139777933,
+    0.7745361328058941
+  ],
+  "square_size_m": 0.07873999999999999,
+  "pattern_size": [
+    9,
+    9
+  ],
+  "world_axes": "x right along board, y into board, z up",
+  "origin": "nearest-left outer board corner",
+  "reprojection_rms_px": 0.2690262763746272
+}

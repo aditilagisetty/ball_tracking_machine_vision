@@ -9,8 +9,10 @@ from ball_tracking_machine_vision.camera_capture import open_camera
 
 def main():
     # Select camera 0 is webcam, right now 4 is zed camera
-    source = "/dev/video4" # Example: "/dev/video4"
-    cap = open_camera(source, resolution=(2560, 720), fps=30)
+    source = "/dev/video0" # Example: "/dev/video4"
+    
+    cap = open_camera(source, resolution=(1280, 720), fps=30)
+    
 
     # Error if video source cant be opened
     if not cap.isOpened():

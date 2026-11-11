@@ -6,7 +6,7 @@ first saved frame, sampled after camera.read(); they are approximate host
 read times, not hardware exposure timestamps. AVI's nominal FPS does not
 replace those timestamps when estimating velocity.
 
----------------------------AI DISCLAIMER!------------------------------------
+---------------------------AI DISCLAIMER------------------------------------
 These functions are primarily AI generated, developing this file ourselves is
 out of scope for this project (and does not contribute to our learning goals)
 """

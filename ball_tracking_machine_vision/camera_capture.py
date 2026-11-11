@@ -10,8 +10,17 @@ The ZED shows up as a normal webcam that returns one side-by-side image
 """
 
 def open_camera(source, resolution, fps):
-    """Open the ZED 2i with cv2.VideoCapture at the given resolution/fps."""
+    """Open the ZED 2i with cv2.VideoCapture at the given resolution/fps.
+
+    Args:
+        source: Camera index or device path.
+        resolution: Full frame (width, height), including both stereo views.
+        fps: Requested frames per second.
+    Returns:
+        Open cv2.VideoCapture object.
+    """
     camera = cv2.VideoCapture(source,cv2.CAP_V4L2)
+    camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
     # Error if video source cant be opened
     if not camera.isOpened():
         camera.release()
@@ -35,7 +44,13 @@ def open_camera(source, resolution, fps):
 
 
 def split_side_by_side(frame):
-    """Split a side-by-side ZED frame into left and right images."""
+    """Split a side-by-side ZED frame into left and right images.
+
+    Args:
+        frame: Image array containing left and right views side by side.
+    Returns:
+        Tuple (left, right) of image arrays.
+    """
     # Frame is height,width,color
     # All frame rows, only half the columns to get left and right frames
     left = frame[:, :frame.shape[1] // 2]
@@ -44,7 +59,13 @@ def split_side_by_side(frame):
 
 
 def read_stereo_frame(camera):
-    """Grab one frame and return (left, right, timestamp)."""
+    """Grab one frame and return (left, right, timestamp).
+
+    Args:
+        camera: Open cv2.VideoCapture object.
+    Returns:
+        Tuple (left, right, timestamp), with a monotonic timestamp in seconds.
+    """
     ok, frame = camera.read()
     timestamp = time.monotonic()
     # If frame is not read
@@ -55,14 +76,20 @@ def read_stereo_frame(camera):
     
     return left, right, timestamp
 
-# I DON'T UNDERSTAND THIS AT ALL LOLOLOLOLOLOL
-# Go through, understand, and comment later. For now this is VCd
 def load_calibration(conf_path, resolution): 
-    """Load the ZED factory calibration file (SN*.conf): intrinsics, baseline."""
-    #conf_path = "docs/SN35842573.conf"   
+    """Load the ZED factory calibration file (SN*.conf): intrinsics, baseline.
 
+    Args:
+        conf_path: Path to the ZED factory calibration file.
+        resolution: Single-view (width, height) in pixels.
+    Returns:
+        Tuple (K_left, D_left, K_right, D_right, R, T, baseline, resolution).
+        K and D are intrinsics and distortion; R and T map left to right.
+        T and baseline are in meters.
+    """
+    # conf_path = "docs/SN35842573.conf"   
     # Set resolution mode 
-    # Resolution refers to ONE view, after splitting the stereo frame.
+    # Resolution refers to one view, after splitting the stereo frame.
     modes = {
     (2208, 1242): "2K",
     (1920, 1080): "FHD",
@@ -86,6 +113,13 @@ def load_calibration(conf_path, resolution):
 
     # Function to get the intrinsics
     def get_intrinsics(section):
+        """Read intrinsics and distortion for one camera.
+
+        Args:
+            section: Camera section name in the calibration file.
+        Returns:
+            Tuple (K, D): 3x3 intrinsic matrix and distortion coefficients.
+        """
         # Grab values from config
         fx = float(config.get(section, "fx")) # horizontal focal length
         fy = float(config.get(section, "fy")) # vertical focal length
@@ -141,7 +175,14 @@ def load_calibration(conf_path, resolution):
     
 
 def build_rectification_maps(image_size):
-    """Precompute the OpenCV remap tables for rectifying left and right."""
+    """Precompute the OpenCV remap tables for rectifying left and right.
+
+    Args:
+        image_size: Single-view (width, height) in pixels.
+    Returns:
+        Tuple (left_map_x, left_map_y, right_map_x, right_map_y, P1, P2, Q).
+        Includes remap arrays, projection matrices, and disparity-to-3D matrix.
+    """
     # Load calibration data
     K_left, D_left, K_right, D_right, R, T, baseline, resolution = load_calibration("docs/SN35842573.conf",image_size)
     # Get the rectification transforms for each eye of stereo camera
@@ -161,7 +202,7 @@ def rectify(left, right, rectification_maps):
         right: The image of the right camera:
         rectification_maps: The rectification map for each of the left and right camera
     Returns:
-    
+        Tuple (left_remap, right_remap) of rectified image arrays.
     """
     left_map_x, left_map_y, right_map_x, right_map_y,P1,P2,Q = rectification_maps
     # Remap so the ball in both images are at the same coordinate
@@ -170,7 +211,9 @@ def rectify(left, right, rectification_maps):
     return left_remap, right_remap
     
 
-# GPT for now, this is just for testing the mapping works using checkerboard    
+
+# This function was developed primarily using ChatGPT. It serves as a test to check
+# our implementation of the previous functions worked properly.   
 def verify_calibration_checkerboard(
     left, right, rectification_maps, square_size, pattern_size
 ):

@@ -2,6 +2,8 @@
 
 we draw a red ball where the camera would see it in the left and right
 images so we know exactly where the ball really was
+
+some ai assistance used
 """
 
 import csv

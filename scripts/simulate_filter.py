@@ -4,7 +4,7 @@ Measurement noise comes from the ZED 2i stereo geometry (stereo_noise.py):
 a few mm sideways but several cm in depth, growing with distance. The camera
 numbers there are placeholders until we measure the real ones.
 """
-
+# Some ai assistance used
 import numpy as np
 
 from ball_tracking_machine_vision.kalman_filter import SIGMA_A, BallKalmanFilter

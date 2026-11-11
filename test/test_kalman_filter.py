@@ -6,6 +6,7 @@ from ball_tracking_machine_vision.kalman_filter import SIGMA_A
 from ball_tracking_machine_vision.simulation import BALL_DRAG
 from scripts.simulate_filter import run_filter, simulate_measurements
 
+# Some ai assistance used
 
 def test_tracks_simulated_throw():
     """Filter error should stay small on a noisy simulated throw."""

@@ -32,7 +32,13 @@ def make_color_mask(image, hsv_low, hsv_high):
     )
 
 def detect_ball_color(image):
-    """Detect the ball as the largest ball-colored blob. Returns (u, v, radius) or None."""
+    """Detect the ball as the largest ball-colored blob. Returns (u, v, radius) or None.
+
+    Args:
+        image: BGR image array.
+    Returns:
+        Center (u, v) and radius in pixels, or None if no blob is found.
+    """
     # Create color mask
     mask1 = make_color_mask(image, RED_LOW_1, RED_HIGH_1)
     mask2 = make_color_mask(image, RED_LOW_2, RED_HIGH_2)
@@ -57,7 +63,13 @@ def detect_ball_color(image):
 
 
 def detect_ball_hough(image, hough_params):
-    """Detect the ball with cv2.HoughCircles. Returns (u, v, radius) or None."""\
+    """Detect the ball with cv2.HoughCircles. Returns (u, v, radius) or None.
+    Args:
+        image: BGR image array.
+        hough_params: Dictionary of HoughCircles parameters.
+    Returns:
+        Center (u, v) and radius in pixels, or None if no circle is found.
+    """
     # Convert image to grayscale
     gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     # Then blur the image to reduce noise
@@ -81,16 +93,14 @@ def detect_ball_hough(image, hough_params):
     return float(u), float(v), float(radius)
 
     
-# Orange basketball HSV starting values; tune for lighting.
-# Keep the existing names for compatibility with tune_detector.py.
-# Both ranges cover orange so the second mask does not also select red.
-# Basketball HSV detection
+# Red ball HSV starting values; tune for lighting.
 RED_LOW_1 = (0, 190, 160)
 RED_HIGH_1 = (10, 255, 255)
 
 RED_LOW_2 = (0, 190, 160)
 RED_HIGH_2 = (10, 255, 255)
 
+# Circle hough parameters
 HOUGH_PARAMS = {
     "dp": 1.2,
     "minDist": 30,
@@ -99,8 +109,16 @@ HOUGH_PARAMS = {
     "minRadius": 15,
     "maxRadius": 150,
 }
+
 def detect_ball(image, method):
-    """Run the chosen detection method on one image."""
+    """Run the chosen detection method on one image.
+
+    Args:
+        image: BGR image array.
+        method: Detection method, either "color" or "hough".
+    Returns:
+        Center (u, v) and radius in pixels, or None if no ball is found.
+    """
     if method == "color":
         return detect_ball_color(image)
     if method == "hough":

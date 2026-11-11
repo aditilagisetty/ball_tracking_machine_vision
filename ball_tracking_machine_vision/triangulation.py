@@ -3,7 +3,14 @@ import cv2
 import numpy as np
 
 def compute_disparity(left_point, right_point):
-    """Horizontal pixel offset between left and right detections."""
+    """Calculate the horizontal pixel difference between stereo detections.
+    Args:
+        left_point: Left-image detection (u, v, radius)
+        right_point: Right-image detection (u, v, radius)
+
+    Returns:
+        Left u minus right u, in pixels
+    """
     # ball detection returns u,v,radius. We want to difference between u values
     # in left and right image
     if left_point is None or right_point is None:
@@ -12,7 +19,23 @@ def compute_disparity(left_point, right_point):
     return distance
 
 def triangulate(left_point, right_point, P1,P2):
-    """Return the ball's 3D position (x, y, z) in the camera frame."""
+    """Reconstruct the ball's 3D position from rectified stereo detections.
+
+    Uses the detected centers and stereo projection matrices to calculate
+    a homogeneous 3D point, then divides by its scale factor W to obtain
+    Cartesian coordinates.
+
+    Args:
+        left_point: Rectified left-image detection (u, v, radius)
+        right_point: Rectified right-image detection (u, v, radius)
+        P1: Left camera's 3x4 projection matrix from stereo rectification.
+        P2: Right camera's 3x4 projection matrix from stereo rectification.
+
+    Returns:
+        An (x, y, z) tuple in the rectified left-camera frame, where x
+        points right, y points down, and z points forward. Units are meters
+        when the calibration translation is in meters.
+    """
     if left_point is None or right_point is None:
         return None
 
@@ -24,9 +47,6 @@ def triangulate(left_point, right_point, P1,P2):
     if not (np.all(np.isfinite(left_uv))
             and np.all(np.isfinite(right_uv))):
         return None
-
-
-
 
     # Triangulate and give reconstructed 3D points in homogenous coordiantes
         # cv2.triangulatePoints returns X,Y,Z, and W, the scale factor in homogenous coordinates 
@@ -58,11 +78,11 @@ def camera_to_world(point, camera_pose):
     Args:
         point: (x, y, z) in meters
         camera_pose: (R_camera_to_world, camera_position_world).
-            R_camera_to_world: 3×3 rotation matrix mapping rectified
+            R_camera_to_world: 3x3 rotation matrix mapping rectified
                 camera axes into world axes.
             camera_position_world: Camera origin's (x, y, z)
                 position in the world, in meters.
-
+    
     Returns:
         World-frame x, y, and z 
     """
