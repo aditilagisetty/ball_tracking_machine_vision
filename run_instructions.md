@@ -1,3 +1,4 @@
+These instructions are for Linux / MacOS devices
 ## Setup
 
 ```bash
